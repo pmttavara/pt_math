@@ -71,13 +71,15 @@ static float(PT_(fabsf))(float x) {
 #if defined(_MSC_VER) || defined(__GNUC__)
 #include <emmintrin.h>
 static double(PT_(sqrt))(double x) {
-    __m128d m = _mm_set_sd(x);
+    __m128d m;
+    m = _mm_set_sd(x);
     m = _mm_sqrt_pd(m);
     x = _mm_cvtsd_f64(m);
     return x;
 }
 static float(PT_(sqrtf))(float x) {
-    __m128 m = _mm_set_ss(x);
+    __m128 m;
+    m = _mm_set_ss(x);
     m = _mm_sqrt_ps(m);
     x = _mm_cvtss_f32(m);
     return x;
@@ -86,7 +88,8 @@ static double(PT_(rsqrt))(double x) {
     return 1 / PT_(sqrt)(x);
 }
 static float(PT_(rsqrtf))(float x) {
-    __m128 m = _mm_set_ss(x);
+    __m128 m;
+    m = _mm_set_ss(x);          
     m = _mm_rsqrt_ps(m);
     x = _mm_cvtss_f32(m);
     return x;
@@ -252,8 +255,7 @@ static float(PT_(exp2f))(float x) {
 }
 static double(PT_(log2))(double x) {
     PT__ll y;
-    double result;
-    double z;
+    double result, z;
     PT__FPCOPY64(y, x);
     y >>= 52;
     result = (double)y;
@@ -271,8 +273,7 @@ static double(PT_(log2))(double x) {
 }
 static float(PT_(log2f))(float x) {
     int y;
-    float result;
-    float z;
+    float result, z;
     PT__FPCOPY32(y, x);
     y >>= 23;
     result = (float)y;

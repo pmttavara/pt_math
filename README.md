@@ -11,8 +11,6 @@ These functions stick to the C API, but it doesn't implement all of `math.h` - n
 # Exceptions to branch-free rule
 - `atan2` likely compiles to branches due to being hopelessly discontinuous.
 
-- An implementation of `dtoa` is included, but like all of the functions, it should only be treated as an approximation.
-
 # Credits
 **There are no credits.** I want this library to be easy to use - which means public domain, and no attribution necessary.
 To be clear, I didn't invent all of these algorithms - but conveniently, the original authors are lost to time.

@@ -8,13 +8,6 @@ These functions differ slightly from the C standard library *by design* - **to s
 ### API
 These functions stick to the C API, but the library doesn't implement all of `math.h` - notable exclusions are machine-related functions (e.g. `fma`, `nextafter`), precision-related functions (e.g. `expm1`), complex numbers, and `tgamma`/`lgamma`. The standard elementary functions that you would expect are included, as well as hyperbolic trig.
 
-### Why are functions declared like `double(PT_(sin))(double x)`?
-You can re-define `PT_()` to decorate the function name as e.g. `my_sin`, or simply `sin`.
-
-The outer parentheses are to prevent macro expansion in the event that `PT_sin(x)` is defined as a macro. Wrapper macros can be used to replace a given implementation or to the operate on the input before entering the meat of the algorithm.
-
-One thing to note is that when functions are *called* in the library, they don't prevent expansion, meaning you can define a wrapper macro for `PT_exp2(x)` that performs range checking and that checking will propagate to `PT_exp`, `PT_pow`, etc. If you want a wrapper without this propagation behaviour, then include the library *before* defining the macro.
-
 ### Exceptions to branch-free rule
 - `atan2` is highly discontinuous, so a truly branch-free implementation of this routine is likely impossible.
 

@@ -13,8 +13,5 @@ These functions stick to the C API, but the library doesn't implement all of `ma
 
 ## Credits
 I want this library to be easy to use, so no attribution is necessary.
-
-I didn't invent all of these algorithms, but the original authors are lost to time.
-
 - The `sin` algorithm was originally conceived by an anonymous user on a now-unavailable programming forum.
-- The `log` snippet is of unknown origin, similarly to the fast inverse square root.
+- `round`, `sqrt`, `rsqrt`, and `log` are all of dubious origin.

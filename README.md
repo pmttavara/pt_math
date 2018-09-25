@@ -1,2 +1,2 @@
 # pt_math
-public domain fastscalar math routines
+public domain fast scalar math routines

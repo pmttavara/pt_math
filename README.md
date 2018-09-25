@@ -15,4 +15,4 @@ These functions stick to the C API, but it doesn't implement all of `math.h` - n
 # Credits
 **There are no credits.** I want this library to be easy to use - which means public domain, and no attribution necessary.
 To be clear, I didn't invent all of these algorithms - but conveniently, the original authors are lost to time.
-The `sin` algorithm was originally conceived by an anonymous user on a now-unavailable programming forum, and the `log` algorithm is a 
+The `sin` algorithm was originally conceived by an anonymous user on a now-unavailable programming forum, and the `log` snippet is of unknown origin similarly to the fast inverse square root.

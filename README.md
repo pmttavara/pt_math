@@ -5,7 +5,7 @@ All of the code is public domain - if you like, you can copy out the `sin` imple
 
 These functions differ slightly from the C standard library *by design* - **to stay fast, they don't do range checking or follow C's precision requirements.** Think of these routines more as "decent approximations", for when you know the particular input domain and you have leeway with the output. Video games are a good use case.
 
-### API
+### C compatibility
 These functions stick to the C API, but the library doesn't implement all of `math.h` - notable exclusions are machine-related functions (e.g. `fma`, `nextafter`), precision-related functions (e.g. `expm1`), complex numbers, and `tgamma`/`lgamma`. The standard elementary functions that you would expect are included, as well as hyperbolic trig.
 
 ### Exceptions to branch-free rule

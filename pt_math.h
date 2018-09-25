@@ -30,8 +30,6 @@ extern "C" {
 #define PT_isnormal(f) (PT_fpclassify(f) == PT_FP_NORMAL)
 static unsigned int PT__dclass(double x);
 static unsigned int PT__fclass(float x);
-static int PT__dtoa_ex(double d, char *out_buf, int out_len, int prec,
-                       int *length);
 
 typedef unsigned long long PT__ull;
 typedef long long PT__ll;
@@ -223,12 +221,13 @@ static float(PT_(atanf))(float x) {
                 0.842458832225f);
 }
 static double(PT_(exp2))(double x) {
-    PT__ll exponent = (PT__ll)(x + 1023);
+    double y, z;
+    PT__ll exponent;
+    exponent = (PT__ll)(x + 1023);
     x += 1023 - exponent;
     exponent <<= 52;
-    double y;
     PT__FPCOPY64(y, exponent);
-    double z = x;
+    z = x;
     z *= 0.339766027260413688582;
     z += 0.660233972739586311418;
     x *= z;
@@ -237,12 +236,13 @@ static double(PT_(exp2))(double x) {
     return x;
 }
 static float(PT_(exp2f))(float x) {
-    int exponent = (int)(x + 127);
+    float y, z;
+    int exponent;
+    exponent = (int)(x + 127);
     x += 127 - exponent;
     exponent <<= 23;
-    float y;
     PT__FPCOPY32(y, exponent);
-    float z = x;
+    z = x;
     z *= 0.339766027f;
     z += 0.660233972f;
     x *= z;
@@ -305,11 +305,13 @@ static float(PT_(ceilf))(float x) {
     return PT_(roundf)(x);
 }
 static double(PT_(remainder))(double x, double y) {
-    double z = x / y;
+    double z;
+    z = x / y;
     return x - PT_(floor)(z) * y;
 }
 static float(PT_(remainderf))(float x, float y) {
-    float z = x / y;
+    float z;
+    z = x / y;
     return x - PT_(floorf)(z) * y;
 }
 static double(PT_(tan))(double x) {
@@ -382,17 +384,20 @@ static float(PT_(tanhf))(float x) {
     return (1 - x) / (1 + x);
 }
 static double(PT_(asinh))(double x) {
-    double y = x * x + 1;
+    double y;
+    y = x * x + 1;
     x += PT_(sqrt)(y);
     return PT_(log)(x);
 }
 static float(PT_(asinhf))(float x) {
-    float y = x * x + 1;
+    float y;
+    y = x * x + 1;
     x += PT_(sqrtf)(y);
     return PT_(logf)(x);
 }
 static double(PT_(acosh))(double x) {
-    double y = x * x - 1;
+    double y;
+    y = x * x - 1;
     x += PT_(sqrt)(y);
     return PT_(log)(x);
 }
@@ -439,20 +444,6 @@ static float(PT_(atan2f))(float y, float x) {
     result = PT_(atanf)(y) + (x < 0) * t;
     return result + !x * (t * 0.5f - result);
 }                                      
-static char *(PT_(dtoa))(double d) {
-    static char out_buf[512];
-    (PT__dtoa_ex)(d, out_buf, sizeof(out_buf), 17, 0);
-    return out_buf;
-}
-static char *(PT_(ftoa))(float f) {
-    static char out_buf[512];
-    (PT__dtoa_ex)(f, out_buf, sizeof(out_buf), 9, 0);
-    return out_buf;
-}
-
-#ifdef __cplusplus
-}
-#endif
 
 #ifndef PT_MATH_H
 static unsigned int PT__dclass(double x) {
@@ -493,119 +484,7 @@ static unsigned int PT__fclass(float x) {
     }
     return signbit | PT_FP_NAN;
 }
-static int PT__dtoa_ex(double d, char *out_buf, int out_len, int prec,
-                       int *length) {
-    int msd, lsd, i;
-    char *out;
-    PT__ull ud;
-#define PT__LUT0(x) x##0, x##1, x##2, x##3, x##4, x##5, x##6, x##7, x##8, x##9
-#define PT__LUT1(x)                                                            \
-    PT__LUT0(x##0), PT__LUT0(x##1), PT__LUT0(x##2), PT__LUT0(x##3),            \
-        PT__LUT0(x##4), PT__LUT0(x##5), PT__LUT0(x##6), PT__LUT0(x##7),        \
-        PT__LUT0(x##8), PT__LUT0(x##9)
-    static const double neg_pow10_table[] = {
-        PT__LUT1(1e-0),  PT__LUT1(1e-1),  PT__LUT1(1e-2),
-        PT__LUT0(1e-30), PT__LUT0(1e-31), 1e-320,
-        1e-321,          1e-322,          1e-323};
-    static const double pos_pow10_table[] = {
-        PT__LUT1(1e0), PT__LUT1(1e1), PT__LUT1(1e2), 1e300, 1e301, 1e302,
-        1e303,         1e304,         1e305,         1e306, 1e307, 1e308};
-    if (prec < 1 || out_len < 4) {
-        return -1;
-    }
-    out = out_buf;
-    PT__FPCOPY64(ud, d);
-    if (ud >> 63) {
-        *out++ = '-';
-        ud &= 0x7fffffffffffffff;
-        d = -d;
-    }
-    if (ud >= 0x7ff0000000000000) {
-        if (ud == 0x7ff0000000000000) {
-            *out++ = 'I';
-            *out++ = 'n';
-            *out++ = 'f';
-        } else {
-            *out++ = 'N';
-            *out++ = 'a';
-            *out++ = 'N';
-        }
-        goto done;
-    }
-    if (ud == 0) {
-        *out++ = '0';
-        goto done;
-    }
-    msd = (ud >> 52) - 1023; /* log2 */
-    if (msd < 0) {           /* log10 approx */
-        msd = msd * 617 / 2048;
-    } else {
-        msd = msd * 1233 / 4096 + 1;
-    }
-    if (msd > out_len - 4 || -msd > out_len - 4) {
-        return -1;
-    }
-    lsd = msd - prec;
-    i = msd;
-    if (-lsd > out_len - 3) {
-        lsd = out_len - 3;
-        lsd = -lsd;
-    }
-    if (i > 0) {
-        PT__ull leading_digit = (PT__ull)(d * neg_pow10_table[i]);
-        if (leading_digit) {
-            *out++ = leading_digit % 10 + '0';
-        }
-        i--;
-    }
-    for (; i >= 0 && i >= lsd; i--) {
-        *out++ = (PT__ull)(d * neg_pow10_table[i]) % 10 + '0';
-    }
-    for (; i > 0; i--) {
-        *out++ = '0';
-    }
-    if (msd < 0) {
-        *out++ = '0';
-    }
-    if (lsd < 0) {
-        *out++ = '.';
-    }
-    for (i = -1; i > msd; i--) {
-        *out++ = '0';
-    }
-    for (; i >= -308 && i >= lsd; i--) {
-        *out++ = (PT__ull)(d * pos_pow10_table[-i]) % 10 + '0';
-    }
-    for (; i >= -323 && i >= lsd; i--) {
-        double digit = d * pos_pow10_table[-i / 2];
-        digit *= pos_pow10_table[-i / 2 + -i % 2];
-        *out++ = (PT__ull)digit % 10 + '0';
-    }
-    if (i == -324) {
-        *out++ = (PT__ull)(d * 1.0e162 * 1.0e162) % 10 + '0';
-    }
-    if (lsd < 0) {
-        while (1) {
-            if (out[-1] == '.') {
-                out--;
-                break;
-            }
-            if (out[-1] != '0') {
-                break;
-            }
-            out--;
-        }
-    }
-done:
-    if (length) {
-        *length = (int)(out - out_buf);
-    }
-    if (out - out_buf < out_len) {
-        *out = 0;
-    }
-    return 0;
-}
-#define PT_FNS(S, D, F, N)                                                     \
+#define PT_FNS(S, D, N)                                                        \
     S(abs, int)                                                                \
     S(labs, long)                                                              \
     S(llabs, long long)                                                        \
@@ -670,8 +549,10 @@ done:
     S(erf, double)                                                             \
     S(erff, float)                                                             \
     S(erfc, double)                                                            \
-    S(erfcf, float)                                                            \
-    F(dtoa, double)                                                            \
-    F(ftoa, float)
+    S(erfcf, float)
 #define PT_MATH_H
 #endif /* PT_MATH_H */
+
+#ifdef __cplusplus
+}
+#endif

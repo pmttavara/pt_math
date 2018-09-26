@@ -181,7 +181,7 @@ static float PT_asinf(float x) {
     return x * (0.131754508171f * (x < 0 ? -x : x) + 0.924391722181f);
 }
 static double PT_acos(double x) {
-    return 1.570796327f - PT_asin(x);
+    return 1.57079632679489662 - PT_asin(x);
 }
 static float PT_acosf(float x) {
     return 1.570796327f - PT_asinf(x);

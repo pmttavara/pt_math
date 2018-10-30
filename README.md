@@ -20,6 +20,6 @@ I want this library to be easy to use, so no attribution is necessary.
 <sup>1</sup>Actual public domain dedications are of unclear legality worldwide, so an equivalent permissive license (no-clause BSD) is used, available at the bottom of the file.
 
 Algorithm credit:
-- The `sin` algorithm was originally conceived by an anonymous user on (unfortunately) a now-unavailable programming forum.
-- `round`, `sqrt`, `rsqrt`, and `log` are all of dubious origin, scattered publicly around the Internet.
+- The `sin` algorithm was invented by [Nicolas Capens](https://github.com/c0d1f1ed) [(@c0d1f1ed)](https://twitter.com/c0d1f1ed) on a [now-defunct programming forum.](https://web.archive.org/web/20130927121234/http://devmaster.net/posts/9648/fast-and-accurate-sine-cosine).
+- `round`, `sqrt`, `rsqrt`, and `log` are publicly available algorithms.
 - The rest are new, to my knowledge.

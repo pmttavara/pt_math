@@ -122,13 +122,39 @@ static float PT_rsqrtf(float x) {
     return x * (1.5f - z * x * x);
 }
 #endif
+#if defined(_MSC_VER)
+#pragma float_control(precise, on, push)
+static double PT_no_optimize(double x, double y) {
+    return x + y;
+}
+static float PT_no_optimizef(float x, float y) {
+    return x + y;
+}
+#pragma float_control(pop)
+#elif defined(__GNUC__)
+static double PT_no_optimize(double x, double y)
+    __attribute__((__optimize__("no-associative-math"))) {
+    return x + y;
+}
+static float PT_no_optimizef(float x, float y)
+    __attribute__((__optimize__("no-associative-math"))) {
+    return x + y;
+}
+#else
+static double PT_no_optimize(volatile double x, double y) {
+    return x + y;
+}
+static float PT_no_optimizef(volatile float x, float y) {
+    return x + y;
+}
+#endif
 static double PT_round(double x) {
 #ifdef PT_RANGE_CHECKS
     if ((x < 0 ? -x : x) > 4503599627370495.5)
         return x;
 #endif
     x += 6755399441055744.0;
-    x -= 6755399441055744.0;
+    x = PT_no_optimize(x, -6755399441055744.0);
     return x;
 }
 static float PT_roundf(float x) {
@@ -137,7 +163,7 @@ static float PT_roundf(float x) {
         return x;
 #endif
     x += 12582912.0f;
-    x -= 12582912.0f;
+    x = PT_no_optimizef(x, -12582912.0f);
     return x;
 }
 static double PT_floor(double x) {
@@ -196,7 +222,7 @@ static double PT_sin(double x) {
     double y;
     x *= -0.31830988618379067;
     y = x + 13510798882111488.0;
-    x -= y - 13510798882111488.0;
+    x -= PT_no_optimize(y, -13510798882111488.0);
     x *= (x < 0 ? -x : x) - 1;
     return x * (3.5841304553896 * (x < 0 ? -x : x) + 3.1039673861526);
 }
@@ -204,7 +230,7 @@ static float PT_sinf(float x) {
     float y;
     x *= -0.318309886f;
     y = x + 25165824.0f;
-    x -= y - 25165824.0f;
+    x -= PT_no_optimizef(y, -25165824.0f);
     x *= (x < 0 ? -x : x) - 1;
     return x * (3.5841304553896f * (x < 0 ? -x : x) + 3.1039673861526f);
 }

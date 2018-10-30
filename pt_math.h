@@ -124,20 +124,22 @@ static float PT_rsqrtf(float x) {
 #endif
 #if defined(_MSC_VER)
 #pragma float_control(precise, on, push)
-static double PT_no_optimize(double x, double y) {
+static __forceinline double PT_no_optimize(double x, double y) {
     return x + y;
 }
-static float PT_no_optimizef(float x, float y) {
+static __forceinline float PT_no_optimizef(float x, float y) {
     return x + y;
 }
 #pragma float_control(pop)
 #elif defined(__GNUC__)
 static double PT_no_optimize(double x, double y)
-    __attribute__((__optimize__("no-associative-math"))) {
+    __attribute__((__optimize__("no-associative-math")))
+    __attribute__((always_inline)) {
     return x + y;
 }
 static float PT_no_optimizef(float x, float y)
-    __attribute__((__optimize__("no-associative-math"))) {
+    __attribute__((__optimize__("no-associative-math")))
+    __attribute__((always_inline)) {
     return x + y;
 }
 #else

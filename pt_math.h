@@ -1,7 +1,7 @@
-/* pt_math.h - branchless scalar math routines */
-/* No attribution necessary; hyper-permissive license at bottom of file. */
-/* For saner results at domains' extremes, #define PT_MATH_RANGE_CHECKS. */
-/* For exponentiation by squaring in pow(), #define PT_MATH_PRECISE_POW. */
+/* pt_math.h - branchless scalar math routines
+   No attribution necessary; hyper-permissive license at bottom of file.
+   For saner results at domains' extremes, #define PT_MATH_RANGE_CHECKS.
+   For exponentiation-by-squaring in pow(), #define PT_MATH_PRECISE_POW. */
 #ifndef PT_MATH_H
 #define PT_MATH_H
 #ifdef __cplusplus
@@ -30,6 +30,7 @@ static double PT_sqrt(double x) {
     { int j; for (j = 0; j < 8; j++) ((char *)&y)[j] = ((char *)&x)[j]; }
     y = ((y - 0x0010000000000000ll) >> 1) + 0x2000000000000000ll;
     { int j; for (j = 0; j < 8; j++) ((char *)&z)[j] = ((char *)&y)[j]; }
+    z = (x / z + z) * 0.5;
     return (x / z + z) * 0.5;
 }
 static float PT_sqrtf(float x) {
@@ -41,6 +42,7 @@ static float PT_sqrtf(float x) {
     { int j; for (j = 0; j < 4; j++) ((char *)&y)[j] = ((char *)&x)[j]; }
     y = ((y - 0x00800000) >> 1) + 0x20000000;
     { int j; for (j = 0; j < 4; j++) ((char *)&z)[j] = ((char *)&y)[j]; }
+    z = (x / z + z) * 0.5f;
     return (x / z + z) * 0.5f;
 }
 static double PT_rsqrt(double x) {
@@ -54,6 +56,7 @@ static double PT_rsqrt(double x) {
     { int j; for (j = 0; j < 8; j++) ((char *)&y)[j] = ((char *)&x)[j]; }
     y = 0x5fe6eb50c7b537a9 - (y >> 1);
     { int j; for (j = 0; j < 8; j++) ((char *)&x)[j] = ((char *)&y)[j]; }
+    x *= 1.5 - z * x * x;
     return x * (1.5 - z * x * x);
 }
 static float PT_rsqrtf(float x) {
@@ -67,34 +70,62 @@ static float PT_rsqrtf(float x) {
     { int j; for (j = 0; j < 4; j++) ((char *)&y)[j] = ((char *)&x)[j]; }
     y = 0x5f375a86 - (y >> 1);
     { int j; for (j = 0; j < 4; j++) ((char *)&x)[j] = ((char *)&y)[j]; }
+    x *= 1.5f - z * x * x;
     return x * (1.5f - z * x * x);
 }
 #endif
-/* Strict rounding needed for mod(), sin(), etc. when float optimizations are enabled */
-#if defined(_MSC_VER) || defined(__INTEL_COMPILER)
+/* Rounding and truncation functions - strict rounding is needed */
+#ifdef _MSC_VER
 #pragma float_control(precise, on, push)
-static __forceinline double PT_strict_rounding(double x, double y) { return x + y; }
-static __forceinline float PT_strict_roundingf(float x, float y) { return x + y; }
+static __forceinline double PT_round_unchecked(double x) {
+    x += 6755399441055744.0;
+    x -= 6755399441055744.0;
+    return x;
+}
+static __forceinline float PT_round_uncheckedf(float x) {
+    x += 12582912.0f;
+    x -= 12582912.0f;
+    return x;
+}
 #pragma float_control(pop)
 #elif defined(__GNUC__)
-static double PT_strict_rounding(double x, double y) __attribute__((__optimize__("no-associative-math"))) __attribute__((always_inline)) { return x + y; }
-static float PT_strict_roundingf(float x, float y) __attribute__((__optimize__("no-associative-math"))) __attribute__((always_inline)) { return x + y; }
+static double PT_round_unchecked(double x)
+    __attribute__((__optimize__("no-associative-math")))
+    __attribute__((always_inline)) {
+    x += 6755399441055744.0;
+    x -= 6755399441055744.0;
+    return x;
+}
+static float PT_round_uncheckedf(float x)
+    __attribute__((__optimize__("no-associative-math")))
+    __attribute__((always_inline)) {
+    x += 12582912.0f;
+    x -= 12582912.0f;
+    return x;
+}
 #else
-static double PT_strict_rounding(volatile double x, double y) { return x + y; }
-static float PT_strict_roundingf(volatile float x, float y) { return x + y; }
+static double PT_round_unchecked(double x) {
+    *(volatile double *)(char *)&x += 6755399441055744.0;
+    *(volatile double *)(char *)&x -= 6755399441055744.0;
+    return x;
+}
+static float PT_round_uncheckedf(float x) {
+    *(volatile float *)(char *)&x += 12582912.0f;
+    *(volatile float *)(char *)&x -= 12582912.0f;
+    return x;
+}
 #endif
-/* Rounding and truncation functions */
 static double PT_round(double x) {
 #ifdef PT_MATH_RANGE_CHECKS
     if ((x < 0 ? -x : x) > 4503599627370495.5) return x;
 #endif
-    return PT_strict_rounding(x + 6755399441055744.0, -6755399441055744.0);
+    return PT_round_unchecked(x);
 }
 static float PT_roundf(float x) {
 #ifdef PT_MATH_RANGE_CHECKS
     if ((x < 0 ? -x : x) > 8388607.5f) return x;
 #endif
-    return PT_strict_roundingf(x + 12582912.0f, -12582912.0f);
+    return PT_round_uncheckedf(x);
 }
 static double PT_floor(double x) { return PT_round(x - 0.5); }
 static float PT_floorf(float x) { return PT_roundf(x - 0.5f); }
@@ -130,16 +161,16 @@ static float PT_fmodf(float x, float y) {
 }
 /* Trigonometric functions */
 static double PT_sin(double x) {
-    x *= -0.31830988618379067;
-    x -= PT_strict_rounding(x + 13510798882111488.0, -13510798882111488.0);
-    x *= (x < 0 ? -x : x) - 1;
-    return x * (3.5841304553896 * (x < 0 ? -x : x) + 3.1039673861526);
+    x *= 0.15915494309189534;
+    x -= PT_round_unchecked(x);
+    x *= 0.5 - (x < 0 ? -x : x);
+    return x * (57.3460872862336 * (x < 0 ? -x : x) + 12.4158695446104);
 }
 static float PT_sinf(float x) {
-    x *= -0.318309886f;
-    x -= PT_strict_roundingf(x + 25165824.0f, -25165824.0f);
-    x *= (x < 0 ? -x : x) - 1;
-    return x * (3.5841304553896f * (x < 0 ? -x : x) + 3.1039673861526f);
+    x *= 0.15915494309189534f;
+    x -= PT_round_uncheckedf(x);
+    x *= 0.5f - (x < 0 ? -x : x);
+    return x * (57.3460872862336f * (x < 0 ? -x : x) + 12.4158695446104f);
 }
 static double PT_cos(double x) { return PT_sin(x + 1.57079632679489662); }
 static float PT_cosf(float x) { return PT_sinf(x + 1.570796327f); }
@@ -157,12 +188,16 @@ static float PT_asinf(float x) {
 static double PT_acos(double x) { return 1.57079632679489662 - PT_asin(x); }
 static float PT_acosf(float x) { return 1.570796327f - PT_asinf(x); }
 static double PT_atan(double x) {
+    double y;
     x /= (x < 0 ? -x : x) + 1;
-    return x * ((x < 0 ? -x : x) * (-1.45667498914 * (x < 0 ? -x : x) + 2.18501248371) + 0.842458832225);
+    y = (x < 0 ? -x : x);
+    return x * (y * (-1.45667498914 * y + 2.18501248371) + 0.842458832225);
 }
 static float PT_atanf(float x) {
+    float y;
     x /= (x < 0 ? -x : x) + 1;
-    return x * ((x < 0 ? -x : x) * (-1.45667498914f * (x < 0 ? -x : x) + 2.18501248371f) + 0.842458832225f);
+    y = (x < 0 ? -x : x);
+    return x * (y * (-1.45667498914f * y + 2.18501248371f) + 0.842458832225f);
 }
 static double PT_atan2(double y, double x) {
     double t;
@@ -321,27 +356,28 @@ static float PT_erff(float x) {
 static double PT_erfc(double x) { return 1 - PT_erf(x); }
 static float PT_erfcf(float x) { return 1 - PT_erff(x); }
 /* Common mathematical constants */
-#define PT_TAU 6.28318530717958648
 #define PT_E 2.71828182845904524
+#define PT_LOG2E 1.44269504088896341
+#define PT_LOG10E 0.43429448190325183
+#define PT_LN2 0.69314718055994531
+#define PT_LN10 2.30258509299404568
+#define PT_TAU 6.28318530717958648
+#define PT_1_TAU 0.15915494309189534
+#define PT_PI 3.14159265358979324
+#define PT_1_PI 0.31830988618379067
+#define PT_1_SQRTPI 0.56418958354775629
+#define PT_SQRT2 1.41421356237309505
 #define PT_INFINITY ((float)(1e300 * 1e300))
-#define PT_NAN (PT_INFINITY * 0)
+#define PT_NAN ((float)(1e300 * 1e300) * 0)
 /* Common floating-point operations */
 #define PT_ABS(x) ((x) < 0 ? -(x) : (x))
-#define PT_FPCOPY64(dst, src)                                                  \
-    do {                                                                       \
-        int PT_i;                                                              \
-        char *PT_d = (char *)&(dst);                                           \
-        char *PT_s = (char *)&(src);                                           \
-        for (PT_i = 0; PT_i < 8; PT_i++)                                       \
-            PT_d[PT_i] = PT_s[PT_i];                                           \
+#define PT_FPCOPY64(dst, src) do {                                             \
+        int PT_i; for (PT_i = 0; PT_i < 8; PT_i++)                             \
+            ((char *)&(dst))[PT_i] = ((char *)&(src))[PT_i];                   \
     } while (0)
-#define PT_FPCOPY32(dst, src)                                                  \
-    do {                                                                       \
-        int PT_i;                                                              \
-        char *PT_d = (char *)&(dst);                                           \
-        char *PT_s = (char *)&(src);                                           \
-        for (PT_i = 0; PT_i < 4; PT_i++)                                       \
-            PT_d[PT_i] = PT_s[PT_i];                                           \
+#define PT_FPCOPY32(dst, src) do {                                             \
+        int PT_i; for (PT_i = 0; PT_i < 4; PT_i++)                             \
+            ((char *)&(dst))[PT_i] = ((char *)&(src))[PT_i];                   \
     } while (0)
 /* Float classification macros */
 #define PT_FP_ZERO 0
@@ -372,88 +408,17 @@ static int PT_fclass(float x) {
     return signbit | PT_FP_NAN;
 }
 #define PT_CLASS(f) (sizeof(f) == 8 ? PT_dclass(f) : PT_fclass(f))
+#define PT_signbit(f) (PT_CLASS(f) >> 3)
 #define PT_fpclassify(f) (PT_CLASS(f) & 7)
-#define PT_signbit(f) (!!(PT_CLASS(f) & 8))
 #define PT_isfinite(f) (PT_fpclassify(f) < PT_FP_INFINITE)
 #define PT_isinf(f) (PT_fpclassify(f) == PT_FP_INFINITE)
 #define PT_isnan(f) (PT_fpclassify(f) == PT_FP_NAN)
 #define PT_isnormal(f) (PT_fpclassify(f) == PT_FP_NORMAL)
-/* List of all functions formatted as an X macro */
-#define PT_FNS(S, D, N)                                                        \
-    S(abs, int)                                                                \
-    S(labs, long)                                                              \
-    S(llabs, long long)                                                        \
-    S(fabs, double)                                                            \
-    S(fabsf, float)                                                            \
-    S(sqrt, double)                                                            \
-    S(sqrtf, float)                                                            \
-    N(rsqrt, double)                                                           \
-    N(rsqrtf, float)                                                           \
-    S(round, double)                                                           \
-    S(roundf, float)                                                           \
-    S(floor, double)                                                           \
-    S(floorf, float)                                                           \
-    S(ceil, double)                                                            \
-    S(ceilf, float)                                                            \
-    S(trunc, double)                                                           \
-    S(truncf, float)                                                           \
-    S(frac, double)                                                            \
-    S(fracf, float)                                                            \
-    D(remainder, double)                                                       \
-    D(remainderf, float)                                                       \
-    D(fmod, double)                                                            \
-    D(fmodf, float)                                                            \
-    S(sin, double)                                                             \
-    S(sinf, float)                                                             \
-    S(cos, double)                                                             \
-    S(cosf, float)                                                             \
-    S(tan, double)                                                             \
-    S(tanf, float)                                                             \
-    S(asin, double)                                                            \
-    S(asinf, float)                                                            \
-    S(acos, double)                                                            \
-    S(acosf, float)                                                            \
-    S(atan, double)                                                            \
-    S(atanf, float)                                                            \
-    D(atan2, double)                                                           \
-    D(atan2f, float)                                                           \
-    S(exp2, double)                                                            \
-    S(exp2f, float)                                                            \
-    S(log2, double)                                                            \
-    S(log2f, float)                                                            \
-    S(exp, double)                                                             \
-    S(expf, float)                                                             \
-    N(exp10, double)                                                           \
-    N(exp10f, float)                                                           \
-    S(log, double)                                                             \
-    S(logf, float)                                                             \
-    S(log10, double)                                                           \
-    S(log10f, float)                                                           \
-    D(pow, double)                                                             \
-    D(powf, float)                                                             \
-    S(sinh, double)                                                            \
-    S(sinhf, float)                                                            \
-    S(cosh, double)                                                            \
-    S(coshf, float)                                                            \
-    S(tanh, double)                                                            \
-    S(tanhf, float)                                                            \
-    S(asinh, double)                                                           \
-    S(asinhf, float)                                                           \
-    S(acosh, double)                                                           \
-    S(acoshf, float)                                                           \
-    S(atanh, double)                                                           \
-    S(atanhf, float)                                                           \
-    S(erf, double)                                                             \
-    S(erff, float)                                                             \
-    S(erfc, double)                                                            \
-    S(erfcf, float)
 #ifdef __cplusplus
 }
 #endif
-#endif /* PT_MATH_H */
-/*
-Copyright (c) Phillip Trudeau-Tavara, 2017-2018
-All rights reserved.
+#endif
+/* Copyright (c) Phillip Trudeau-Tavara, 2017-2019. All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted.
@@ -468,5 +433,4 @@ LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
 DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
 THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-*/
+OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
